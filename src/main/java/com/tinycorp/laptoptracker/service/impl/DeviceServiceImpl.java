@@ -5,6 +5,7 @@ import com.tinycorp.laptoptracker.domain.enums.DeviceStatus;
 import com.tinycorp.laptoptracker.dto.common.PagedResponse;
 import com.tinycorp.laptoptracker.dto.device.CreateDeviceRequest;
 import com.tinycorp.laptoptracker.dto.device.DeviceResponse;
+import com.tinycorp.laptoptracker.dto.device.UpdateDeviceRequest;
 import com.tinycorp.laptoptracker.exception.ResourceNotFoundException;
 import com.tinycorp.laptoptracker.repository.DeviceRepository;
 import com.tinycorp.laptoptracker.service.DeviceService;
@@ -27,10 +28,19 @@ public class DeviceServiceImpl implements DeviceService {
     }
 
     @Override
-    public PagedResponse<DeviceResponse> getAllDevices(int page, int size) {
-        log.info("Fetching devices page={}, size={}", page, size);
+    public PagedResponse<DeviceResponse> getAllDevices(int page, int size, String search) {
+        log.info("Fetching devices page={}, size={}, search={}", page, size, search);
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
-        Page<DeviceResponse> devicesPage = deviceRepository.findAll(pageable).map(MapperUtil::toDeviceResponse);
+        Page<DeviceResponse> devicesPage;
+        if (search == null || search.isBlank()) {
+            devicesPage = deviceRepository.findAll(pageable).map(MapperUtil::toDeviceResponse);
+        } else {
+            String keyword = search.trim();
+            devicesPage = deviceRepository
+                    .findByBrandContainingIgnoreCaseOrModelContainingIgnoreCaseOrCpuContainingIgnoreCase(
+                            keyword, keyword, keyword, pageable)
+                    .map(MapperUtil::toDeviceResponse);
+        }
         return new PagedResponse<>(
                 devicesPage.getContent(),
                 devicesPage.getNumber(),
@@ -60,6 +70,21 @@ public class DeviceServiceImpl implements DeviceService {
         device.setRam(request.getRam());
         device.setManufactureYear(request.getManufactureYear());
         device.setStatus(DeviceStatus.AVAILABLE);
+        Device saved = deviceRepository.save(device);
+        return MapperUtil.toDeviceResponse(saved);
+    }
+
+    @Override
+    public DeviceResponse updateDevice(Long id, UpdateDeviceRequest request) {
+        log.info("Updating device id={}", id);
+        Device device = deviceRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found"));
+        device.setBrand(request.getBrand());
+        device.setModel(request.getModel());
+        device.setCpu(request.getCpu());
+        device.setRam(request.getRam());
+        device.setManufactureYear(request.getManufactureYear());
+        device.setStatus(request.getStatus());
         Device saved = deviceRepository.save(device);
         return MapperUtil.toDeviceResponse(saved);
     }

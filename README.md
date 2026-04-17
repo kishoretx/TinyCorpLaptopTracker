@@ -185,17 +185,23 @@ Paginated response shape:
 - `POST /api/v1/auth/login`
 
 ### Users
-- `GET /api/v1/users?page=0&size=10`
+- `GET /api/v1/users?page=0&size=10&q=keyword`
+- `GET /api/v1/users/{userId}`
 - `POST /api/v1/users`
+- `PUT /api/v1/users/{userId}`
 - `PUT /api/v1/users/{userId}/disable`
 
 ### Devices
-- `GET /api/v1/devices?page=0&size=10`
+- `GET /api/v1/devices?page=0&size=10&q=keyword`
 - `GET /api/v1/devices/{id}`
 - `POST /api/v1/devices`
+- `PUT /api/v1/devices/{id}`
 
 ### Assignments
+- `GET /api/v1/assignments?page=0&size=10&q=keyword`
+- `GET /api/v1/assignments/{assignmentId}`
 - `POST /api/v1/assignments`
+- `PUT /api/v1/assignments/{assignmentId}`
 - `PUT /api/v1/assignments/{assignmentId}/return`
 
 ### Reports (`MANAGER` only)
@@ -294,9 +300,14 @@ Current coverage includes:
 - Report endpoints are manager-only
 
 ## UI for Quick Login Testing
-A simple browser UI is available at:
+Browser UI pages are available at:
 - `http://localhost:8080/`
+- `http://localhost:8080/employees.html`
+- `http://localhost:8080/devices.html`
+- `http://localhost:8080/assignments.html`
 
 It supports:
 - Login with manager/employee
-- Quick test calls for `/api/v1/users` and `/api/v1/reports/average-device-age`
+- Employees: list, display, search, create, update, disable, pagination
+- Devices: list, display, search, create, update, pagination
+- Assignments: list, display, search, create, update, return, pagination

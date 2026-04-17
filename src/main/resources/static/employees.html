@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employees</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h2 style="margin:0;">Employees</h2>
+      <div class="nav">
+        <a href="/index.html">Home</a>
+        <a href="/employees.html" class="active">Employees</a>
+        <a href="/devices.html">Devices</a>
+        <a href="/assignments.html">Assignments</a>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card" style="margin:0;">
+        <div class="row">
+          <div class="field"><input id="searchText" placeholder="Search username" /></div>
+          <div class="field" style="max-width:120px;"><input id="pageSize" type="number" min="1" value="10" /></div>
+          <button id="searchBtn">Search</button>
+        </div>
+        <table class="table" id="usersTable">
+          <thead><tr><th>Id</th><th>Username</th><th>Role</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="pager" id="pager"></div>
+      </div>
+      <div class="card" style="margin:0;">
+        <input type="hidden" id="userId" />
+        <div class="row">
+          <div class="field"><label>Username</label><input id="username" /></div>
+          <div class="field"><label>Password (blank keeps old)</label><input id="password" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Role</label><select id="role"><option>EMPLOYEE</option><option>MANAGER</option></select></div>
+          <div class="field"><label>Status</label><select id="status"><option>ACTIVE</option><option>DISABLED</option></select></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="createBtn" class="primary">Create</button>
+          <button id="updateBtn" class="primary">Update</button>
+          <button id="disableBtn" class="danger">Disable</button>
+          <button id="clearBtn">Clear</button>
+        </div>
+        <div id="statusMsg" class="status"></div>
+        <pre id="detail">Select a user row to display details.</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+  let currentPage = 0;
+
+  function rowHtml(user) {
+    return `<tr data-id="${user.id}"><td>${user.id}</td><td>${user.username}</td><td>${user.role}</td><td>${user.status}</td><td>${user.createdAt || ""}</td></tr>`;
+  }
+
+  async function loadUsers(page) {
+    try {
+      currentPage = page;
+      const size = Number(document.getElementById("pageSize").value || 10);
+      const q = encodeURIComponent(document.getElementById("searchText").value || "");
+      const data = await App.request(`/api/v1/users?page=${page}&size=${size}&q=${q}`);
+      const tbody = document.querySelector("#usersTable tbody");
+      tbody.innerHTML = data.content.map(rowHtml).join("");
+      document.querySelectorAll("#usersTable tbody tr").forEach(tr => {
+        tr.onclick = () => loadUserDetail(tr.dataset.id);
+      });
+      App.renderPager("pager", data, loadUsers);
+      App.setStatus("statusMsg", `Loaded ${data.content.length} users.`, false);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function loadUserDetail(id) {
+    try {
+      const data = await App.request(`/api/v1/users/${id}`);
+      document.getElementById("userId").value = data.id;
+      document.getElementById("username").value = data.username;
+      document.getElementById("password").value = "";
+      document.getElementById("role").value = data.role;
+      document.getElementById("status").value = data.status;
+      App.showJson("detail", data);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function createUser() {
+    try {
+      const payload = {
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+        role: document.getElementById("role").value
+      };
+      const data = await App.request("/api/v1/users", "POST", payload);
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "User created.", false);
+      loadUsers(0);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function updateUser() {
+    try {
+      const id = document.getElementById("userId").value;
+      if (!id) throw new Error("Select a user first.");
+      const payload = {
+        username: document.getElementById("username").value.trim(),
+        password: document.getElementById("password").value,
+        role: document.getElementById("role").value,
+        status: document.getElementById("status").value
+      };
+      const data = await App.request(`/api/v1/users/${id}`, "PUT", payload);
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "User updated.", false);
+      loadUsers(currentPage);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function disableUser() {
+    try {
+      const id = document.getElementById("userId").value;
+      if (!id) throw new Error("Select a user first.");
+      const data = await App.request(`/api/v1/users/${id}/disable`, "PUT", {});
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "User disabled.", false);
+      loadUsers(currentPage);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  function clearForm() {
+    document.getElementById("userId").value = "";
+    document.getElementById("username").value = "";
+    document.getElementById("password").value = "";
+    document.getElementById("role").value = "EMPLOYEE";
+    document.getElementById("status").value = "ACTIVE";
+    App.showJson("detail", {});
+  }
+
+  document.getElementById("searchBtn").onclick = () => loadUsers(0);
+  document.getElementById("createBtn").onclick = createUser;
+  document.getElementById("updateBtn").onclick = updateUser;
+  document.getElementById("disableBtn").onclick = disableUser;
+  document.getElementById("clearBtn").onclick = clearForm;
+
+  loadUsers(0);
+</script>
+</body>
+</html>

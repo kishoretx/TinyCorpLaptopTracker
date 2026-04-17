@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assignments</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h2 style="margin:0;">Assignments</h2>
+      <div class="nav">
+        <a href="/index.html">Home</a>
+        <a href="/employees.html">Employees</a>
+        <a href="/devices.html">Devices</a>
+        <a href="/assignments.html" class="active">Assignments</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card" style="margin:0;">
+        <div class="row">
+          <div class="field"><input id="searchText" placeholder="Search username/brand/model" /></div>
+          <div class="field" style="max-width:120px;"><input id="pageSize" type="number" min="1" value="10" /></div>
+          <button id="searchBtn">Search</button>
+        </div>
+        <table class="table" id="assignmentsTable">
+          <thead><tr><th>Id</th><th>User</th><th>Device</th><th>Assigned</th><th>Returned</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="pager" id="pager"></div>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <input type="hidden" id="assignmentId" />
+        <div class="row">
+          <div class="field"><label>User ID</label><input id="userId" type="number" min="1" /></div>
+          <div class="field"><label>Device ID</label><input id="deviceId" type="number" min="1" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Assigned Date</label><input id="assignedDate" type="date" /></div>
+          <div class="field"><label>Returned Date (optional)</label><input id="returnedDate" type="date" /></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="createBtn" class="primary">Create</button>
+          <button id="updateBtn" class="primary">Update</button>
+          <button id="returnBtn">Mark Returned</button>
+          <button id="clearBtn">Clear</button>
+        </div>
+        <div id="statusMsg" class="status"></div>
+        <pre id="detail">Select an assignment row to display details.</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+  let currentPage = 0;
+
+  function rowHtml(a) {
+    return `<tr data-id="${a.id}"><td>${a.id}</td><td>${a.username} (#${a.userId})</td><td>${a.deviceName} (#${a.deviceId})</td><td>${a.assignedDate || ""}</td><td>${a.returnedDate || ""}</td></tr>`;
+  }
+
+  async function loadAssignments(page) {
+    try {
+      currentPage = page;
+      const size = Number(document.getElementById("pageSize").value || 10);
+      const q = encodeURIComponent(document.getElementById("searchText").value || "");
+      const data = await App.request(`/api/v1/assignments?page=${page}&size=${size}&q=${q}`);
+      const tbody = document.querySelector("#assignmentsTable tbody");
+      tbody.innerHTML = data.content.map(rowHtml).join("");
+      document.querySelectorAll("#assignmentsTable tbody tr").forEach(tr => {
+        tr.onclick = () => loadAssignmentDetail(tr.dataset.id);
+      });
+      App.renderPager("pager", data, loadAssignments);
+      App.setStatus("statusMsg", `Loaded ${data.content.length} assignments.`, false);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function loadAssignmentDetail(id) {
+    try {
+      const data = await App.request(`/api/v1/assignments/${id}`);
+      document.getElementById("assignmentId").value = data.id;
+      document.getElementById("userId").value = data.userId;
+      document.getElementById("deviceId").value = data.deviceId;
+      document.getElementById("assignedDate").value = data.assignedDate || "";
+      document.getElementById("returnedDate").value = data.returnedDate || "";
+      App.showJson("detail", data);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  function getPayload() {
+    return {
+      userId: Number(document.getElementById("userId").value),
+      deviceId: Number(document.getElementById("deviceId").value),
+      assignedDate: document.getElementById("assignedDate").value,
+      returnedDate: document.getElementById("returnedDate").value || null
+    };
+  }
+
+  async function createAssignment() {
+    try {
+      const p = getPayload();
+      const data = await App.request("/api/v1/assignments", "POST", {
+        userId: p.userId,
+        deviceId: p.deviceId,
+        assignedDate: p.assignedDate
+      });
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "Assignment created.", false);
+      loadAssignments(0);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function updateAssignment() {
+    try {
+      const id = document.getElementById("assignmentId").value;
+      if (!id) throw new Error("Select an assignment first.");
+      const data = await App.request(`/api/v1/assignments/${id}`, "PUT", getPayload());
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "Assignment updated.", false);
+      loadAssignments(currentPage);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function markReturned() {
+    try {
+      const id = document.getElementById("assignmentId").value;
+      if (!id) throw new Error("Select an assignment first.");
+      const returnedDate = document.getElementById("returnedDate").value;
+      if (!returnedDate) throw new Error("Returned date is required.");
+      const data = await App.request(`/api/v1/assignments/${id}/return`, "PUT", { returnedDate });
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "Assignment marked returned.", false);
+      loadAssignments(currentPage);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  function clearForm() {
+    document.getElementById("assignmentId").value = "";
+    document.getElementById("userId").value = "";
+    document.getElementById("deviceId").value = "";
+    document.getElementById("assignedDate").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("returnedDate").value = "";
+    App.showJson("detail", {});
+  }
+
+  document.getElementById("searchBtn").onclick = () => loadAssignments(0);
+  document.getElementById("createBtn").onclick = createAssignment;
+  document.getElementById("updateBtn").onclick = updateAssignment;
+  document.getElementById("returnBtn").onclick = markReturned;
+  document.getElementById("clearBtn").onclick = clearForm;
+
+  clearForm();
+  loadAssignments(0);
+</script>
+</body>
+</html>

@@ -3,219 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TinyCorp Login Tester</title>
-  <style>
-    :root {
-      --bg: #f4efe6;
-      --card: #fffdf8;
-      --ink: #1f2937;
-      --muted: #6b7280;
-      --accent: #0f766e;
-      --accent-2: #115e59;
-      --danger: #b91c1c;
-      --ok: #166534;
-      --border: #e5e7eb;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: radial-gradient(circle at top right, #d9f99d 0%, var(--bg) 35%), var(--bg);
-      color: var(--ink);
-      display: grid;
-      place-items: center;
-      padding: 20px;
-    }
-    .card {
-      width: min(760px, 100%);
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-      padding: 24px;
-    }
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    p { margin: 0 0 18px; color: var(--muted); }
-    .grid {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: 1fr 1fr;
-    }
-    .full { grid-column: 1 / -1; }
-    label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px; }
-    input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      font-size: 14px;
-      outline: none;
-    }
-    input:focus { border-color: var(--accent); }
-    .actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 10px;
-    }
-    button {
-      border: 0;
-      border-radius: 10px;
-      padding: 10px 14px;
-      cursor: pointer;
-      font-weight: 600;
-      background: #e5e7eb;
-      color: #111827;
-    }
-    .primary {
-      background: var(--accent);
-      color: white;
-    }
-    .primary:hover { background: var(--accent-2); }
-    pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: #0b1020;
-      color: #d1fae5;
-      border-radius: 12px;
-      padding: 12px;
-      min-height: 76px;
-      margin-top: 10px;
-      font-size: 12px;
-    }
-    .status {
-      margin-top: 12px;
-      font-weight: 600;
-      min-height: 22px;
-    }
-    .ok { color: var(--ok); }
-    .err { color: var(--danger); }
-  </style>
+  <title>TinyCorp Tracker UI</title>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <main class="card">
-    <h1>TinyCorp Login Tester</h1>
-    <p>Use this page to test <code>POST /api/v1/auth/login</code> and validate JWT access.</p>
-
-    <div class="grid">
-      <div class="full">
-        <label for="baseUrl">Base URL</label>
-        <input id="baseUrl" value="http://localhost:8080" />
-      </div>
-
+<div class="container">
+  <div class="card">
+    <div class="header">
       <div>
-        <label for="username">Username</label>
+        <h2 style="margin:0;">TinyCorp Laptop Tracker</h2>
+        <div style="color:#6b7280;">Login and navigate to Employees, Devices, and Assignments pages.</div>
+      </div>
+      <div class="nav">
+        <a href="/index.html" class="active">Home</a>
+        <a href="/employees.html">Employees</a>
+        <a href="/devices.html">Devices</a>
+        <a href="/assignments.html">Assignments</a>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>Base URL</label>
+        <input id="baseUrl" />
+      </div>
+      <div class="field">
+        <label>Username</label>
         <input id="username" value="manager" />
       </div>
-
-      <div>
-        <label for="password">Password</label>
+      <div class="field">
+        <label>Password</label>
         <input id="password" type="password" value="manager123" />
       </div>
     </div>
 
-    <div class="actions">
+    <div class="row" style="margin-top:10px;">
       <button id="managerBtn">Use Manager</button>
       <button id="employeeBtn">Use Employee</button>
       <button id="loginBtn" class="primary">Login</button>
-      <button id="usersBtn">Test GET /users</button>
-      <button id="reportsBtn">Test GET /reports/average-device-age</button>
+      <button id="logoutBtn" class="danger">Logout</button>
     </div>
 
     <div id="status" class="status"></div>
     <pre id="result">No response yet.</pre>
-  </main>
+  </div>
+</div>
 
-  <script>
-    const baseUrlEl = document.getElementById('baseUrl');
-    const usernameEl = document.getElementById('username');
-    const passwordEl = document.getElementById('password');
-    const statusEl = document.getElementById('status');
-    const resultEl = document.getElementById('result');
+<script src="/app.js"></script>
+<script>
+  const baseUrlEl = document.getElementById("baseUrl");
+  const usernameEl = document.getElementById("username");
+  const passwordEl = document.getElementById("password");
+  baseUrlEl.value = App.getBaseUrl();
 
-    let token = '';
-
-    function setStatus(message, isError = false) {
-      statusEl.textContent = message;
-      statusEl.className = `status ${isError ? 'err' : 'ok'}`;
+  async function login() {
+    try {
+      App.setBaseUrl(baseUrlEl.value.trim());
+      const payload = await App.request("/api/v1/auth/login", "POST", {
+        username: usernameEl.value.trim(),
+        password: passwordEl.value
+      }, false);
+      App.setToken(payload.token);
+      App.showJson("result", payload);
+      App.setStatus("status", "Login successful. Token saved in local storage.", false);
+    } catch (e) {
+      App.setStatus("status", e.message, true);
     }
+  }
 
-    function showResult(data) {
-      resultEl.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    }
-
-    function authHeader() {
-      return token ? { Authorization: `Bearer ${token}` } : {};
-    }
-
-    async function login() {
-      setStatus('Logging in...');
-      try {
-        const response = await fetch(`${baseUrlEl.value}/api/v1/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: usernameEl.value, password: passwordEl.value })
-        });
-
-        const data = await response.json();
-        showResult(data);
-
-        if (!response.ok) {
-          setStatus(`Login failed (${response.status})`, true);
-          return;
-        }
-
-        token = data.token || '';
-        setStatus('Login successful. Token saved in memory.');
-      } catch (error) {
-        setStatus(`Request failed: ${error.message}`, true);
-      }
-    }
-
-    async function getUsers() {
-      setStatus('Calling /api/v1/users...');
-      try {
-        const response = await fetch(`${baseUrlEl.value}/api/v1/users`, {
-          headers: { ...authHeader() }
-        });
-        const data = await response.json();
-        showResult(data);
-        setStatus(response.ok ? 'Users fetched.' : `Users call failed (${response.status})`, !response.ok);
-      } catch (error) {
-        setStatus(`Request failed: ${error.message}`, true);
-      }
-    }
-
-    async function getReport() {
-      setStatus('Calling /api/v1/reports/average-device-age...');
-      try {
-        const response = await fetch(`${baseUrlEl.value}/api/v1/reports/average-device-age`, {
-          headers: { ...authHeader() }
-        });
-        const data = await response.json();
-        showResult(data);
-        setStatus(response.ok ? 'Report fetched.' : `Report call failed (${response.status})`, !response.ok);
-      } catch (error) {
-        setStatus(`Request failed: ${error.message}`, true);
-      }
-    }
-
-    document.getElementById('managerBtn').addEventListener('click', () => {
-      usernameEl.value = 'manager';
-      passwordEl.value = 'manager123';
-      setStatus('Manager credentials loaded.');
-    });
-
-    document.getElementById('employeeBtn').addEventListener('click', () => {
-      usernameEl.value = 'employee';
-      passwordEl.value = 'employee123';
-      setStatus('Employee credentials loaded.');
-    });
-
-    document.getElementById('loginBtn').addEventListener('click', login);
-    document.getElementById('usersBtn').addEventListener('click', getUsers);
-    document.getElementById('reportsBtn').addEventListener('click', getReport);
-  </script>
+  document.getElementById("managerBtn").onclick = () => {
+    usernameEl.value = "manager";
+    passwordEl.value = "manager123";
+  };
+  document.getElementById("employeeBtn").onclick = () => {
+    usernameEl.value = "employee";
+    passwordEl.value = "employee123";
+  };
+  document.getElementById("loginBtn").onclick = login;
+  document.getElementById("logoutBtn").onclick = () => {
+    App.clearToken();
+    App.setStatus("status", "Token removed.", false);
+    App.showJson("result", { token: "" });
+  };
+</script>
 </body>
 </html>

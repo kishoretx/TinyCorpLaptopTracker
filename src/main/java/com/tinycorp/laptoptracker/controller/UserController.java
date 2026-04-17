@@ -2,6 +2,7 @@ package com.tinycorp.laptoptracker.controller;
 
 import com.tinycorp.laptoptracker.dto.common.PagedResponse;
 import com.tinycorp.laptoptracker.dto.user.CreateUserRequest;
+import com.tinycorp.laptoptracker.dto.user.UpdateUserRequest;
 import com.tinycorp.laptoptracker.dto.user.UserResponse;
 import com.tinycorp.laptoptracker.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,13 +35,25 @@ public class UserController {
     @Operation(summary = "Get users (paginated)")
     public ResponseEntity<PagedResponse<UserResponse>> getUsers(
             @Parameter(description = "0-based page number") @RequestParam(defaultValue = "0") @Min(0) int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") @Min(1) int size) {
-        return ResponseEntity.ok(userService.getAllUsers(page, size));
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") @Min(1) int size,
+            @Parameter(description = "Search by username") @RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(userService.getAllUsers(page, size, q));
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserResponse> getUser(@PathVariable Long userId) {
+        return ResponseEntity.ok(userService.getUserById(userId));
     }
 
     @PostMapping
     public ResponseEntity<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         return ResponseEntity.ok(userService.createUser(request));
+    }
+
+    @PutMapping("/{userId}")
+    public ResponseEntity<UserResponse> updateUser(@PathVariable Long userId,
+                                                   @Valid @RequestBody UpdateUserRequest request) {
+        return ResponseEntity.ok(userService.updateUser(userId, request));
     }
 
     @PutMapping("/{userId}/disable")

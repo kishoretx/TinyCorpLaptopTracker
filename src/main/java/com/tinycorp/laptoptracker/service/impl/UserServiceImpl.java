@@ -4,6 +4,7 @@ import com.tinycorp.laptoptracker.domain.User;
 import com.tinycorp.laptoptracker.domain.enums.UserStatus;
 import com.tinycorp.laptoptracker.dto.common.PagedResponse;
 import com.tinycorp.laptoptracker.dto.user.CreateUserRequest;
+import com.tinycorp.laptoptracker.dto.user.UpdateUserRequest;
 import com.tinycorp.laptoptracker.dto.user.UserResponse;
 import com.tinycorp.laptoptracker.exception.BusinessException;
 import com.tinycorp.laptoptracker.exception.ResourceNotFoundException;
@@ -28,10 +29,16 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public PagedResponse<UserResponse> getAllUsers(int page, int size) {
-        log.info("Fetching users page={}, size={}", page, size);
+    public PagedResponse<UserResponse> getAllUsers(int page, int size, String search) {
+        log.info("Fetching users page={}, size={}, search={}", page, size, search);
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").ascending());
-        Page<UserResponse> usersPage = userRepository.findAll(pageable).map(MapperUtil::toUserResponse);
+        Page<UserResponse> usersPage;
+        if (search == null || search.isBlank()) {
+            usersPage = userRepository.findAll(pageable).map(MapperUtil::toUserResponse);
+        } else {
+            usersPage = userRepository.findByUsernameContainingIgnoreCase(search.trim(), pageable)
+                    .map(MapperUtil::toUserResponse);
+        }
         return new PagedResponse<>(
                 usersPage.getContent(),
                 usersPage.getNumber(),
@@ -41,6 +48,14 @@ public class UserServiceImpl implements UserService {
                 usersPage.isFirst(),
                 usersPage.isLast()
         );
+    }
+
+    @Override
+    public UserResponse getUserById(Long userId) {
+        log.info("Fetching user id={}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return MapperUtil.toUserResponse(user);
     }
 
     @Override
@@ -54,6 +69,24 @@ public class UserServiceImpl implements UserService {
         user.setPassword(request.getPassword());
         user.setRole(request.getRole());
         user.setStatus(UserStatus.ACTIVE);
+        User saved = userRepository.save(user);
+        return MapperUtil.toUserResponse(saved);
+    }
+
+    @Override
+    public UserResponse updateUser(Long userId, UpdateUserRequest request) {
+        log.info("Updating user id={}", userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (userRepository.existsByUsernameAndIdNot(request.getUsername(), userId)) {
+            throw new BusinessException("Username already exists");
+        }
+        user.setUsername(request.getUsername());
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(request.getPassword());
+        }
+        user.setRole(request.getRole());
+        user.setStatus(request.getStatus());
         User saved = userRepository.save(user);
         return MapperUtil.toUserResponse(saved);
     }

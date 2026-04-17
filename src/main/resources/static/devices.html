@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Devices</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <div class="header">
+      <h2 style="margin:0;">Devices</h2>
+      <div class="nav">
+        <a href="/index.html">Home</a>
+        <a href="/employees.html">Employees</a>
+        <a href="/devices.html" class="active">Devices</a>
+        <a href="/assignments.html">Assignments</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card" style="margin:0;">
+        <div class="row">
+          <div class="field"><input id="searchText" placeholder="Search brand/model/cpu" /></div>
+          <div class="field" style="max-width:120px;"><input id="pageSize" type="number" min="1" value="10" /></div>
+          <button id="searchBtn">Search</button>
+        </div>
+        <table class="table" id="devicesTable">
+          <thead><tr><th>Id</th><th>Brand</th><th>Model</th><th>CPU</th><th>RAM</th><th>Year</th><th>Status</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="pager" id="pager"></div>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <input type="hidden" id="deviceId" />
+        <div class="row">
+          <div class="field"><label>Brand</label><input id="brand" /></div>
+          <div class="field"><label>Model</label><input id="model" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>CPU</label><input id="cpu" /></div>
+          <div class="field"><label>RAM (GB)</label><input id="ram" type="number" min="1" /></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Manufacture Year</label><input id="year" type="number" min="1990" max="2100" /></div>
+          <div class="field"><label>Status</label><select id="status"><option>AVAILABLE</option><option>ASSIGNED</option><option>RETIRED</option></select></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="createBtn" class="primary">Create</button>
+          <button id="updateBtn" class="primary">Update</button>
+          <button id="clearBtn">Clear</button>
+        </div>
+        <div id="statusMsg" class="status"></div>
+        <pre id="detail">Select a device row to display details.</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+  let currentPage = 0;
+
+  function rowHtml(d) {
+    return `<tr data-id="${d.id}"><td>${d.id}</td><td>${d.brand}</td><td>${d.model}</td><td>${d.cpu}</td><td>${d.ram}</td><td>${d.manufactureYear}</td><td>${d.status}</td></tr>`;
+  }
+
+  async function loadDevices(page) {
+    try {
+      currentPage = page;
+      const size = Number(document.getElementById("pageSize").value || 10);
+      const q = encodeURIComponent(document.getElementById("searchText").value || "");
+      const data = await App.request(`/api/v1/devices?page=${page}&size=${size}&q=${q}`);
+      const tbody = document.querySelector("#devicesTable tbody");
+      tbody.innerHTML = data.content.map(rowHtml).join("");
+      document.querySelectorAll("#devicesTable tbody tr").forEach(tr => {
+        tr.onclick = () => loadDeviceDetail(tr.dataset.id);
+      });
+      App.renderPager("pager", data, loadDevices);
+      App.setStatus("statusMsg", `Loaded ${data.content.length} devices.`, false);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function loadDeviceDetail(id) {
+    try {
+      const data = await App.request(`/api/v1/devices/${id}`);
+      document.getElementById("deviceId").value = data.id;
+      document.getElementById("brand").value = data.brand;
+      document.getElementById("model").value = data.model;
+      document.getElementById("cpu").value = data.cpu;
+      document.getElementById("ram").value = data.ram;
+      document.getElementById("year").value = data.manufactureYear;
+      document.getElementById("status").value = data.status;
+      App.showJson("detail", data);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  function formPayload() {
+    return {
+      brand: document.getElementById("brand").value.trim(),
+      model: document.getElementById("model").value.trim(),
+      cpu: document.getElementById("cpu").value.trim(),
+      ram: Number(document.getElementById("ram").value),
+      manufactureYear: Number(document.getElementById("year").value),
+      status: document.getElementById("status").value
+    };
+  }
+
+  async function createDevice() {
+    try {
+      const p = formPayload();
+      const payload = { brand: p.brand, model: p.model, cpu: p.cpu, ram: p.ram, manufactureYear: p.manufactureYear };
+      const data = await App.request("/api/v1/devices", "POST", payload);
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "Device created.", false);
+      loadDevices(0);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  async function updateDevice() {
+    try {
+      const id = document.getElementById("deviceId").value;
+      if (!id) throw new Error("Select a device first.");
+      const data = await App.request(`/api/v1/devices/${id}`, "PUT", formPayload());
+      App.showJson("detail", data);
+      App.setStatus("statusMsg", "Device updated.", false);
+      loadDevices(currentPage);
+    } catch (e) {
+      App.setStatus("statusMsg", e.message, true);
+    }
+  }
+
+  function clearForm() {
+    document.getElementById("deviceId").value = "";
+    document.getElementById("brand").value = "";
+    document.getElementById("model").value = "";
+    document.getElementById("cpu").value = "";
+    document.getElementById("ram").value = "";
+    document.getElementById("year").value = "";
+    document.getElementById("status").value = "AVAILABLE";
+    App.showJson("detail", {});
+  }
+
+  document.getElementById("searchBtn").onclick = () => loadDevices(0);
+  document.getElementById("createBtn").onclick = createDevice;
+  document.getElementById("updateBtn").onclick = updateDevice;
+  document.getElementById("clearBtn").onclick = clearForm;
+
+  loadDevices(0);
+</script>
+</body>
+</html>

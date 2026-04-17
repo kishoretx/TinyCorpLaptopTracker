@@ -29,6 +29,11 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/index.html",
+                                "/employees.html",
+                                "/devices.html",
+                                "/assignments.html",
+                                "/styles.css",
+                                "/app.js",
                                 "/favicon.ico",
                                 "/api/v1/auth/login",
                                 "/v3/api-docs/**",

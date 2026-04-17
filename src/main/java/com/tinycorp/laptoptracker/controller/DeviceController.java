@@ -3,6 +3,7 @@ package com.tinycorp.laptoptracker.controller;
 import com.tinycorp.laptoptracker.dto.common.PagedResponse;
 import com.tinycorp.laptoptracker.dto.device.CreateDeviceRequest;
 import com.tinycorp.laptoptracker.dto.device.DeviceResponse;
+import com.tinycorp.laptoptracker.dto.device.UpdateDeviceRequest;
 import com.tinycorp.laptoptracker.service.DeviceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,6 +14,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,8 +35,9 @@ public class DeviceController {
     @Operation(summary = "Get devices (paginated)")
     public ResponseEntity<PagedResponse<DeviceResponse>> getDevices(
             @Parameter(description = "0-based page number") @RequestParam(defaultValue = "0") @Min(0) int page,
-            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") @Min(1) int size) {
-        return ResponseEntity.ok(deviceService.getAllDevices(page, size));
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "10") @Min(1) int size,
+            @Parameter(description = "Search by brand/model/cpu") @RequestParam(defaultValue = "") String q) {
+        return ResponseEntity.ok(deviceService.getAllDevices(page, size, q));
     }
 
     @GetMapping("/{id}")
@@ -45,5 +48,11 @@ public class DeviceController {
     @PostMapping
     public ResponseEntity<DeviceResponse> createDevice(@Valid @RequestBody CreateDeviceRequest request) {
         return ResponseEntity.ok(deviceService.createDevice(request));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<DeviceResponse> updateDevice(@PathVariable Long id,
+                                                       @Valid @RequestBody UpdateDeviceRequest request) {
+        return ResponseEntity.ok(deviceService.updateDevice(id, request));
     }
 }
