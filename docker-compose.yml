@@ -1,0 +1,10 @@
+services:
+  laptop-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tinycorp/laptop-tracker:latest
+    container_name: tinycorp-laptop-tracker
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
